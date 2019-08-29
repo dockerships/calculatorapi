@@ -1,0 +1,595 @@
+swagger: '2.0'
+info:
+  x-ibm-name: calculator
+  title: Calculator
+  version: 1.0.0
+schemes:
+  - https
+host: $(catalog.host)
+basePath: /Calculator
+consumes:
+  - application/json
+produces:
+  - application/json
+securityDefinitions:
+  clientID:
+    type: apiKey
+    in: header
+    name: X-IBM-Client-Id
+security:
+  - clientID: []
+x-ibm-configuration:
+  type: wsdl-to-rest
+  testable: true
+  enforced: true
+  gateway: datapower-gateway
+  cors:
+    enabled: true
+  wsdl-definition:
+    wsdl: Calculator.wsdl
+    service: Calculator
+    port: CalculatorHttpsSoap11Endpoint
+    soap-version: '1.1'
+  assembly:
+    execute:
+      - operation-switch:
+          title: operation-switch
+          case:
+            - operations:
+                - verb: post
+                  path: /add
+              execute:
+                - map:
+                    title: 'add: input'
+                    inputs:
+                      request:
+                        schema:
+                          $ref: '#/definitions/add_element_ns'
+                        variable: request.body
+                        content: application/json
+                    outputs:
+                      content-type:
+                        schema:
+                          type: string
+                        variable: message.headers.content-type
+                      body:
+                        schema:
+                          $ref: >-
+                            #/x-ibm-configuration/targets/Calculator/definitions/addInput
+                        variable: message.body
+                        content: text/xml
+                      SOAPAction:
+                        schema:
+                          type: string
+                        variable: message.headers.SOAPAction
+                    actions:
+                      - set: content-type
+                        default: text/xml
+                      - set: SOAPAction
+                        default: 'urn:add'
+                      - set: body.Envelope.Body.add
+                        from: request
+                - invoke:
+                    title: 'add: invoke'
+                    target-url: >-
+                      https://156.56.179.164:9443/services/Calculator.CalculatorHttpsSoap11Endpoint/
+                    timeout: 60
+                    verb: POST
+                    cache-response: protocol
+                    cache-ttl: 900
+                    output: InvokeOut
+                    stop-on-error:
+                      - SOAPError
+                - map:
+                    title: 'add: output'
+                    inputs:
+                      input:
+                        schema:
+                          $ref: >-
+                            #/x-ibm-configuration/targets/Calculator/definitions/addOutput
+                        variable: InvokeOut.body
+                        content: application/xml
+                    outputs:
+                      response:
+                        schema:
+                          $ref: '#/definitions/addResponse_element_ns'
+                        variable: message.body
+                        content: application/json
+                    actions:
+                      - set: response
+                        from: input.Envelope.Body.addResponse
+          otherwise: []
+          version: 1.0.0
+    catch:
+      - errors:
+          - SOAPError
+        execute:
+          - map:
+              title: SOAPFault map
+              inputs:
+                CommonFault:
+                  schema:
+                    $ref: >-
+                      #/x-ibm-configuration/targets/Calculator/definitions/CommonFault
+                  variable: InvokeOut.body
+                  content: application/xml
+              outputs:
+                response:
+                  schema:
+                    $ref: '#/definitions/CommonFault'
+                  variable: message.body
+                  content: application/json
+              actions:
+                - set: response.Fault
+                  from: CommonFault.Envelope.Body.Fault
+                - set: response.error
+                  from: CommonFault.Envelope.Body.Fault.faultstring
+              version: 1.0.0
+      - default: []
+  phase: realized
+  targets:
+    Calculator:
+      swagger: '2.0'
+      info:
+        title: Calculator
+        description: ''
+        x-ibm-name: calculator
+        version: 1.0.0
+      schemes:
+        - https
+      basePath: /Calculator
+      produces:
+        - application/xml
+      consumes:
+        - text/xml
+      securityDefinitions:
+        clientID:
+          type: apiKey
+          name: X-IBM-Client-Id
+          in: header
+          description: ''
+      security:
+        - clientID: []
+      x-ibm-configuration:
+        phase: realized
+        enforced: true
+        testable: true
+        gateway: datapower-gateway
+        cors:
+          enabled: true
+        assembly:
+          execute:
+            - proxy:
+                title: proxy
+                target-url: >-
+                  https://156.56.179.164:9443/services/Calculator.CalculatorHttpsSoap11Endpoint/
+        x-ibm-apiconnect-wsdl:
+          package-version: 1.7.21
+          options:
+            mapSOAPFaults: true
+          messages: {}
+      paths:
+        /add:
+          post:
+            summary: Operation add
+            description: ''
+            operationId: add
+            x-ibm-soap:
+              soap-action: 'urn:add'
+              soap-operation: '{http://c.b.a}add'
+            parameters:
+              - in: body
+                name: body
+                required: true
+                schema:
+                  $ref: >-
+                    #/x-ibm-configuration/targets/Calculator/definitions/addInput
+            responses:
+              '500':
+                description: ''
+                schema:
+                  $ref: >-
+                    #/x-ibm-configuration/targets/Calculator/definitions/CommonFault
+              default:
+                description: ''
+                schema:
+                  $ref: >-
+                    #/x-ibm-configuration/targets/Calculator/definitions/addOutput
+      definitions:
+        Security:
+          xml:
+            namespace: >-
+              http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd
+            prefix: wsse
+          description: Header for WS-Security
+          type: object
+          properties:
+            UsernameToken:
+              xml:
+                namespace: >-
+                  http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd
+                prefix: wsse
+              type: object
+              properties:
+                Username:
+                  xml:
+                    namespace: >-
+                      http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd
+                    prefix: wsse
+                  type: string
+                Password:
+                  xml:
+                    namespace: >-
+                      http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd
+                    prefix: wsse
+                  type: string
+                Nonce:
+                  xml:
+                    namespace: >-
+                      http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd
+                    prefix: wsse
+                  type: string
+                  properties:
+                    EncodingType:
+                      xml:
+                        namespace: ''
+                        attribute: true
+                      type: string
+                Created:
+                  xml:
+                    namespace: >-
+                      http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd
+                    prefix: wsu
+                  type: string
+            Timestamp:
+              xml:
+                namespace: >-
+                  http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd
+                prefix: wsu
+              type: object
+              properties:
+                Created:
+                  xml:
+                    namespace: >-
+                      http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd
+                    prefix: wsu
+                  type: string
+                Expires:
+                  xml:
+                    namespace: >-
+                      http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd
+                    prefix: wsu
+                  type: string
+                Id:
+                  xml:
+                    namespace: >-
+                      http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd
+                    prefix: wsu
+                    attribute: true
+                  type: string
+        addInput:
+          type: object
+          properties:
+            Envelope:
+              xml:
+                namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                prefix: soapenv
+              type: object
+              properties:
+                Header:
+                  $ref: >-
+                    #/x-ibm-configuration/targets/Calculator/definitions/addHeader
+                Body:
+                  xml:
+                    namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                    prefix: soapenv
+                  type: object
+                  properties:
+                    add:
+                      $ref: >-
+                        #/x-ibm-configuration/targets/Calculator/definitions/add_element_ns
+                  required:
+                    - add
+              required:
+                - Body
+          required:
+            - Envelope
+          x-ibm-schema:
+            wsdl-port: '{http://c.b.a}CalculatorHttpsSoap11Endpoint'
+            wsdl-operation: add
+            wsdl-message-direction-or-name: addRequest
+          example: >-
+
+            <soapenv:Envelope
+            xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+             <soapenv:Header>
+              <wsse:Security xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+               <wsse:UsernameToken>
+                <wsse:Username>string</wsse:Username>
+                <wsse:Password>string</wsse:Password>
+                <wsse:Nonce EncodingType="string">string</wsse:Nonce>
+                <wsu:Created>string</wsu:Created>
+               </wsse:UsernameToken>
+               <wsu:Timestamp wsu:Id="string">
+                <wsu:Created>string</wsu:Created>
+                <wsu:Expires>string</wsu:Expires>
+               </wsu:Timestamp>
+              </wsse:Security>
+             </soapenv:Header>
+             <soapenv:Body>
+              <ns:add xmlns:ns="http://c.b.a"><!-- mandatory -->
+               <ns:n1>3</ns:n1>
+               <ns:n2>3</ns:n2>
+              </ns:add>
+             </soapenv:Body>
+            </soapenv:Envelope>
+        addHeader:
+          type: object
+          properties:
+            Security:
+              $ref: '#/x-ibm-configuration/targets/Calculator/definitions/Security'
+        addOutput:
+          type: object
+          properties:
+            Envelope:
+              xml:
+                namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                prefix: soapenv
+              type: object
+              properties:
+                Body:
+                  xml:
+                    namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                    prefix: soapenv
+                  type: object
+                  properties:
+                    addResponse:
+                      $ref: >-
+                        #/x-ibm-configuration/targets/Calculator/definitions/addResponse_element_ns
+              required:
+                - Body
+          required:
+            - Envelope
+          x-ibm-schema:
+            wsdl-port: '{http://c.b.a}CalculatorHttpsSoap11Endpoint'
+            wsdl-operation: add
+            wsdl-message-direction-or-name: addResponse
+          example: >-
+
+            <soapenv:Envelope
+            xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+             <soapenv:Body>
+              <ns:addResponse xmlns:ns="http://c.b.a">
+               <ns:return>3</ns:return>
+              </ns:addResponse>
+             </soapenv:Body>
+            </soapenv:Envelope>
+        addFault:
+          type: object
+          properties:
+            Envelope:
+              xml:
+                namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                prefix: soapenv
+              type: object
+              properties:
+                Body:
+                  xml:
+                    namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                    prefix: soapenv
+                  type: object
+                  properties:
+                    Fault:
+                      xml:
+                        namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                        prefix: soapenv
+                      type: object
+                      properties:
+                        faultcode:
+                          xml:
+                            namespace: ''
+                          type: string
+                        faultstring:
+                          xml:
+                            namespace: ''
+                          type: string
+                        faultactor:
+                          xml:
+                            namespace: ''
+                          type: string
+                        detail:
+                          xml:
+                            namespace: ''
+                            prefix: ''
+                          type: object
+                          properties: {}
+              required:
+                - Body
+          required:
+            - Envelope
+          x-ibm-schema:
+            wsdl-port: '{http://c.b.a}CalculatorHttpsSoap11Endpoint'
+            wsdl-operation: add
+            wsdl-message-direction-or-name: addFault
+        add_element_ns:
+          xml:
+            namespace: 'http://c.b.a'
+            prefix: ns
+            name: add
+          type: object
+          properties:
+            n1:
+              xml:
+                namespace: 'http://c.b.a'
+                prefix: ns
+              type: integer
+              format: int32
+            n2:
+              xml:
+                namespace: 'http://c.b.a'
+                prefix: ns
+              type: integer
+              format: int32
+          example: |-
+
+            <ns:add xmlns:ns="http://c.b.a">
+             <ns:n1>3</ns:n1>
+             <ns:n2>3</ns:n2>
+            </ns:add>
+        addResponse_element_ns:
+          xml:
+            namespace: 'http://c.b.a'
+            prefix: ns
+            name: addResponse
+          type: object
+          properties:
+            return:
+              xml:
+                namespace: 'http://c.b.a'
+                prefix: ns
+              type: integer
+              format: int32
+          example: |-
+
+            <ns:addResponse xmlns:ns="http://c.b.a">
+             <ns:return>3</ns:return>
+            </ns:addResponse>
+        CommonFault:
+          type: object
+          properties:
+            Envelope:
+              xml:
+                namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                prefix: soapenv
+              type: object
+              properties:
+                Header:
+                  xml:
+                    namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                    prefix: soapenv
+                  type: object
+                  properties: {}
+                Body:
+                  xml:
+                    namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                    prefix: soapenv
+                  type: object
+                  properties:
+                    Fault:
+                      xml:
+                        namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+                        prefix: soapenv
+                      type: object
+                      properties:
+                        faultcode:
+                          xml:
+                            namespace: ''
+                            prefix: ''
+                          type: string
+                        faultstring:
+                          xml:
+                            namespace: ''
+                            prefix: ''
+                          type: string
+                        faultactor:
+                          xml:
+                            namespace: ''
+                            prefix: ''
+                          type: string
+                        detail:
+                          xml:
+                            namespace: ''
+                            prefix: ''
+                          type: object
+                          properties: {}
+              required:
+                - Body
+          required:
+            - Envelope
+  x-ibm-apiconnect-wsdl:
+    package-version: 1.7.21
+    options:
+      mapSOAPFaults: true
+    messages:
+      info:
+        - message: >-
+            The wsdl 'service' has multiple 'ports'. The api is generated using
+            information in the first soap 'port'.
+      warning: []
+      error: []
+paths:
+  /add:
+    post:
+      responses:
+        '200':
+          description: 200 OK
+          schema:
+            $ref: '#/definitions/addResponse_element_ns'
+        '500':
+          description: ''
+          schema:
+            $ref: '#/definitions/CommonFault'
+      parameters:
+        - name: request
+          required: true
+          in: body
+          schema:
+            $ref: '#/definitions/add_element_ns'
+definitions:
+  CommonFault:
+    type: object
+    properties:
+      error:
+        type: object
+        properties:
+          $:
+            type: string
+      Fault:
+        type: object
+        properties:
+          faultcode:
+            type: object
+            properties:
+              $:
+                type: string
+          faultstring:
+            type: object
+            properties:
+              $:
+                type: string
+          faultactor:
+            type: object
+            properties:
+              $:
+                type: string
+          detail:
+            type: object
+            properties: {}
+  add_element_ns:
+    type: object
+    properties:
+      n1:
+        type: object
+        properties:
+          $:
+            description: int32
+            type: string
+            example: '3'
+      n2:
+        type: object
+        properties:
+          $:
+            description: int32
+            type: string
+            example: '3'
+  addResponse_element_ns:
+    type: object
+    properties:
+      return:
+        type: object
+        properties:
+          $:
+            description: int32
+            type: string
+            example: '3'
+tags: []
